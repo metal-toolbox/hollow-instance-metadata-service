@@ -5,12 +5,16 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
+	"reflect"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pmezard/go-difflib/difflib"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/types"
@@ -267,12 +271,78 @@ func (r *Router) instanceMetadataSet(c *gin.Context) {
 		Metadata: types.JSON(params.Metadata),
 	}
 
+	// Log the difference between the metadata we're about to upsert and the metadata we have in the database
+	instanceMetadataLogDiffs(r, c, newInstanceMetadata)
+
 	err := upserter.UpsertMetadata(c, r.DB, r.Logger, params.ID, params.getIPAddresses(), newInstanceMetadata)
 	if err != nil {
 		dbErrorResponse(r.Logger, c, err)
 	}
 
 	c.Status(http.StatusOK)
+}
+
+// Log the difference between the metadata we're about to upsert and the metadata we have in the database
+func instanceMetadataLogDiffs(r *Router, c *gin.Context, newInstanceMetadata *models.InstanceMetadatum) {
+	instanceID := newInstanceMetadata.ID
+
+	existingMetadata, err := models.FindInstanceMetadatum(c.Request.Context(), r.DB, instanceID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		r.Logger.Sugar().Info("Upsert metadata diff for instance ", instanceID, ": this is the first metadata for this instance (sql.ErrNoRows)")
+		return
+	}
+
+	if existingMetadata == nil {
+		r.Logger.Sugar().Info("Upsert metadata diff for instance ", instanceID, ": this is the first metadata for this instance")
+		return
+	}
+
+	if existingMetadata != nil {
+		r.Logger.Sugar().Info("Upsert metadata diff for instance ", instanceID, ": ", diffJSON(r, instanceID, existingMetadata.Metadata, newInstanceMetadata.Metadata))
+	}
+}
+
+// diffJSON returns a string representation of the difference between two JSON objects
+func diffJSON(r *Router, instanceID string, existingJSON, newJSON types.JSON) string {
+	var existingMap, newMap map[string]interface{}
+
+	err := existingJSON.Unmarshal(&existingMap)
+	if err != nil {
+		return "Error unmarshalling existing JSON"
+	}
+
+	r.Logger.Sugar().Info("Existing metadata for instance ", instanceID, "has ", len(existingMap), " keys")
+
+	err = newJSON.Unmarshal(&newMap)
+	if err != nil {
+		return "Error unmarshalling new JSON"
+	}
+
+	r.Logger.Sugar().Info("New metadata for instance ", instanceID, "has ", len(newMap), " keys")
+
+	return diffMap(existingMap, newMap)
+}
+
+// diffMap returns a string representation of the difference between two maps
+func diffMap(existingMap, newMap map[string]interface{}) string {
+	var diff difflib.UnifiedDiff
+
+	if reflect.DeepEqual(existingMap, newMap) {
+		return "No difference"
+	}
+
+	// Generate a unified diff between the two maps
+	diff = difflib.UnifiedDiff{
+		A: difflib.SplitLines(fmt.Sprintf("%#v", existingMap)),
+		B: difflib.SplitLines(fmt.Sprintf("%#v", newMap)),
+	}
+
+	diffText, err := difflib.GetUnifiedDiffString(diff)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return diffText
 }
 
 func (r *Router) instanceUserdataSet(c *gin.Context) {
