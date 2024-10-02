@@ -184,6 +184,7 @@ func TestSetUserdataRequestValidations(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			w := httptest.NewRecorder()
 
 			req, _ := http.NewRequestWithContext(context.TODO(), http.MethodPost, v1api.GetInternalUserdataPath(), bytes.NewReader(reqBody))

@@ -50,6 +50,14 @@ const (
 	// endpoint used for retrieving the stored metadata for an instance
 	InternalUserdataWithIDURI = "/device-userdata/:instance-id"
 
+	// InternalMetadataRefreshWithURI is the path to the internal (authenticated)
+	// endpoint used for forcing a refresh of the metadata for an instance
+	InternalMetadataRefreshWithURI = "/device-metadata/refresh/:instance-id"
+
+	// InternalUserdataRefreshWithURI is the path to the internal (authenticated)
+	// endpoint used for forcing a refresh of the userdata for an instance
+	InternalUserdataRefreshWithURI = "/device-userdata/refresh/:instance-id"
+
 	scopePrefix = "metadata"
 )
 
@@ -82,18 +90,33 @@ type Router struct {
 func (r *Router) Routes(rg *gin.RouterGroup) {
 	setupValidator()
 
+	// Unauthenticated endpoints that users can use to fetch metadata and userdata.
+	// These lookups are done based on the originating IP of the request.
 	rg.GET(MetadataURI, middleware.IdentifyInstanceByIP(r.Logger, r.DB), r.instanceMetadataGet)
 	rg.GET(UserdataURI, middleware.IdentifyInstanceByIP(r.Logger, r.DB), r.instanceUserdataGet)
 
+	// Authenticated endpoints
 	authMw := r.AuthMW
+
+	// Used to write metadata or userdata for an instance
 	rg.POST(InternalMetadataURI, authMw.AuthRequired(), authMw.RequiredScopes(upsertScopes("metadata")), r.instanceMetadataSet)
 	rg.POST(InternalUserdataURI, authMw.AuthRequired(), authMw.RequiredScopes(upsertScopes("userdata")), r.instanceUserdataSet)
 
+	// Check whether metadata or userdata exists for an instance, without triggering
+	// a refresh if not found in the DB
 	rg.HEAD(InternalMetadataWithIDURI, authMw.AuthRequired(), authMw.RequiredScopes(readScopes("metadata")), r.instanceMetadataExistsInternal)
 	rg.HEAD(InternalUserdataWithIDURI, authMw.AuthRequired(), authMw.RequiredScopes(readScopes("userdata")), r.instanceUserdataExistsInternal)
 
+	// Force a refresh of metadata or userdata for an instance by looking it up via the lookup client
+	rg.POST(InternalMetadataRefreshWithURI, authMw.AuthRequired(), authMw.RequiredScopes(upsertScopes("metadata")), r.instanceMetadataRefreshInternal)
+	rg.POST(InternalUserdataRefreshWithURI, authMw.AuthRequired(), authMw.RequiredScopes(upsertScopes("userdata")), r.instanceUserdataRefreshInternal)
+
+	// Retrieve metadata or userdata for an instance by looking it up with the
+	// instance ID (instead of the originating IP)
 	rg.GET(InternalMetadataWithIDURI, authMw.AuthRequired(), authMw.RequiredScopes(readScopes("metadata")), r.instanceMetadataGetInternal)
 	rg.GET(InternalUserdataWithIDURI, authMw.AuthRequired(), authMw.RequiredScopes(readScopes("userdata")), r.instanceUserdataGetInternal)
+
+	// Delete metadata or userdata for an instance
 	rg.DELETE(InternalMetadataWithIDURI, authMw.AuthRequired(), authMw.RequiredScopes(deleteScopes("metadata")), r.instanceMetadataDelete)
 	rg.DELETE(InternalUserdataWithIDURI, authMw.AuthRequired(), authMw.RequiredScopes(deleteScopes("userdata")), r.instanceUserdataDelete)
 }
@@ -270,6 +293,7 @@ func setupValidator() {
 		if name == "-" {
 			return ""
 		}
+
 		return name
 	})
 }

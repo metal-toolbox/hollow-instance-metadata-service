@@ -67,6 +67,7 @@ func TestGetMetadataLookupByIP(t *testing.T) {
 	for _, testcase := range testCases {
 		t.Run(testcase.testName, func(t *testing.T) {
 			lookupClient.setResponse(testcase.instanceIP, testcase.lookupResponse)
+
 			w := httptest.NewRecorder()
 
 			req, _ := http.NewRequestWithContext(context.TODO(), http.MethodGet, v1api.GetMetadataPath(), nil)

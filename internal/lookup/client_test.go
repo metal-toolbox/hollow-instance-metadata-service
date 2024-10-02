@@ -15,7 +15,7 @@ import (
 )
 
 func lookupMetadataServerMock(instance testInstance) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		resp := instance.MetadataResponse()
 
 		_ = json.NewEncoder(w).Encode(resp)
@@ -23,7 +23,7 @@ func lookupMetadataServerMock(instance testInstance) *httptest.Server {
 }
 
 func lookupUserdataServerMock(instance testInstance) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		resp := instance.UserdataResponse()
 
 		_ = json.NewEncoder(w).Encode(resp)
@@ -31,8 +31,9 @@ func lookupUserdataServerMock(instance testInstance) *httptest.Server {
 }
 
 func lookupServerWithStatusMock(status int, body string) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(status)
+
 		if len(body) > 0 {
 			fmt.Fprint(w, body)
 		}

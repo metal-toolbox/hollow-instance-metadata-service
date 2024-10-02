@@ -67,6 +67,7 @@ func TestGetEc2MetadataLookupByIP(t *testing.T) {
 	for _, testcase := range testCases {
 		t.Run(testcase.testName, func(t *testing.T) {
 			lookupClient.setResponse(testcase.instanceIP, testcase.lookupResponse)
+
 			w := httptest.NewRecorder()
 
 			req, _ := http.NewRequestWithContext(context.TODO(), http.MethodGet, v1api.GetEc2MetadataPath(), nil)
@@ -126,6 +127,7 @@ func TestGetEc2MetadataItemLookupByIP(t *testing.T) {
 	for _, testcase := range testCases {
 		t.Run(testcase.testName, func(t *testing.T) {
 			lookupClient.setResponse(testcase.instanceIP, testcase.lookupResponse)
+
 			w := httptest.NewRecorder()
 
 			req, _ := http.NewRequestWithContext(context.TODO(), http.MethodGet, v1api.GetEc2MetadataItemPath("hostname"), nil)

@@ -89,6 +89,7 @@ func TestIdentifyInstanceByIP(t *testing.T) {
 					assert.Equal(t, nil, instanceIDValue)
 					assert.False(t, found)
 				}
+
 				c.JSON(http.StatusOK, "ok")
 			})
 

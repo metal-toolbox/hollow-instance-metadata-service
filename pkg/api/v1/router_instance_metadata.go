@@ -15,6 +15,7 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/types"
 
+	"go.hollow.sh/metadataservice/internal/lookup"
 	"go.hollow.sh/metadataservice/internal/middleware"
 	"go.hollow.sh/metadataservice/internal/models"
 	"go.hollow.sh/metadataservice/internal/upserter"
@@ -119,6 +120,88 @@ func (r *Router) instanceMetadataGetInternal(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusOK, augmentedMetadata)
 	}
+}
+
+// instanceMetadataRefreshInternal retrieves the requested instance ID from the
+// path and performs a lookup to refresh the metadata from an external system.
+// If the metadata is successfully refreshed, it returns a 200. If not, it
+// returns a 500. This can be used by an authenticated external system to
+// trigger a refresh of metadata for a specific instance.
+func (r *Router) instanceMetadataRefreshInternal(c *gin.Context) {
+	instanceID, err := getUUIDParam(c, "instance-id")
+
+	if err != nil {
+		invalidUUIDResponse(c, err)
+		return
+	}
+
+	// Perform a lookup from the upstream lookup service to retrieve the current metadata.
+	if !r.LookupEnabled || r.LookupClient == nil {
+		r.Logger.Sugar().Errorf("LookupClient is not configured or enabled, cannot refresh metadata for instance %s", instanceID)
+		c.Status(http.StatusInternalServerError)
+
+		return
+	}
+
+	// Save the metadata to the database if found, otherwise return a 404.
+	metadata, err := lookup.MetadataSyncByID(c.Request.Context(), r.DB, r.Logger, r.LookupClient, instanceID)
+	if err != nil && errors.Is(err, lookup.ErrNotFound) {
+		r.Logger.Sugar().Warnf("Metadata not found from upstream during refresh for instance %s", instanceID)
+		c.Status(http.StatusNotFound)
+
+		return
+	}
+
+	r.Logger.Sugar().Infof("Metadata successfully refreshed for instance %s", instanceID)
+
+	augmentedMetadata, err := addTemplateFields(metadata.Metadata, r.TemplateFields)
+	if err != nil {
+		r.Logger.Sugar().Warnf("Error adding additional templated fields to refreshed metadata for instance %s", metadata.ID, "error", err)
+
+		// Since we couldn't add the templated fields, just return the metadata as-is
+		c.JSON(http.StatusOK, metadata.Metadata)
+	} else {
+		c.JSON(http.StatusOK, augmentedMetadata)
+	}
+}
+
+// instanceUserdataRefreshInternal retrieves the requested instance ID from the
+// path and performs a lookup to refresh the userdata from an external system.
+// If the userdata is successfully refreshed, it returns a 200. If not, it
+// returns a 500. This can be used by an authenticated external system to
+// trigger a refresh of userdata for a specific instance.
+func (r *Router) instanceUserdataRefreshInternal(c *gin.Context) {
+	instanceID, err := getUUIDParam(c, "instance-id")
+
+	if err != nil {
+		invalidUUIDResponse(c, err)
+		return
+	}
+
+	// Perform a lookup from the upstream lookup service to retrieve the current userdata.
+	if !r.LookupEnabled || r.LookupClient == nil {
+		r.Logger.Sugar().Errorf("LookupClient is not configured or enabled, cannot refresh userdata for instance %s", instanceID)
+		c.Status(http.StatusInternalServerError)
+
+		return
+	}
+
+	// Save the userdata to the database if found, otherwise return a 404.
+	userdata, err := lookup.UserdataSyncByID(c.Request.Context(), r.DB, r.Logger, r.LookupClient, instanceID)
+	if err != nil && errors.Is(err, lookup.ErrNotFound) {
+		r.Logger.Sugar().Warnf("Userdata not found from upstream during refresh for instance %s", instanceID)
+		c.Status(http.StatusNotFound)
+
+		return
+	}
+
+	r.Logger.Sugar().Infof("Userdata successfully refreshed for instance %s", instanceID)
+
+	if userdata != nil {
+		c.String(http.StatusOK, string(userdata.Userdata.Bytes))
+	}
+
+	c.Status(http.StatusOK)
 }
 
 // instanceMetadataExistsInternal retrieves the requested instance ID from the

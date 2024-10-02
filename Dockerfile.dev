@@ -1,4 +1,4 @@
-FROM golang:1.21 as builder
+FROM golang:1.23 as builder
 
 # Create and change to the app directory.
 WORKDIR /app
@@ -11,7 +11,7 @@ RUN go mod download
 # Copy local code to the container image.
 COPY . ./
 
-RUN go mod tidy -go=1.21
+RUN go mod tidy -go=1.23
 
 # Build the binary.
 # -mod=readonly ensures immutable go.mod and go.sum in container builds.

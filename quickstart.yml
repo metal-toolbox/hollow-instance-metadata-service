@@ -1,8 +1,6 @@
-version: "3.9"
-
 services:
   metadataservice:
-    image: ghcr.io/metal-toolbox/hollow-metadaaservice:v0.0.27
+    image: ghcr.io/metal-toolbox/hollow-metadaaservice:v0.0.29
     depends_on:
       crdb:
         condition: service_healthy
@@ -18,7 +16,7 @@ services:
       - metadataservice
 
   metadataservice-migrate:
-    image: ghcr.io/metal-toolbox/hollow-metadataservice:v0.0.27
+    image: ghcr.io/metal-toolbox/hollow-metadataservice:v0.0.29
     command:
       migrate up
     depends_on:
