@@ -23,7 +23,7 @@ require (
 	github.com/volatiletech/null/v8 v8.1.2
 	github.com/volatiletech/randomize v0.0.1
 	github.com/volatiletech/sqlboiler/v4 v4.16.2
-	github.com/volatiletech/strmangle v0.0.6
+	github.com/volatiletech/strmangle v0.0.8
 	github.com/zsais/go-gin-prometheus v0.1.0
 	go.hollow.sh/toolbox v0.6.2
 	go.infratographer.com/x v0.3.9
