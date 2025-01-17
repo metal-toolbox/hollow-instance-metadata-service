@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -mod=readonly -v -o metadataservice
 # Use the official Alpine image for a lean production container.
 # https://hub.docker.com/_/alpine
 # https://docs.docker.com/develop/develop-images/multistage-build/#use-multi-stage-builds
-FROM alpine:3.19
+FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
 
 # Run as a non-root user (>10000 to avoid conflicts with the host's user table)
